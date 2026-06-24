@@ -4,3 +4,4 @@ pyarrow
 plotly
 streamlit
 huggingface_hub
+libsql-experimental
