@@ -446,13 +446,21 @@ def charger_periode(start: date, end: date) -> tuple[pd.DataFrame, int, int]:
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS_API) as ex:
             futures = {ex.submit(_fetch, j): j for j in jours_a_fetcher}
-            for fut in as_completed(futures):
-                try:
-                    j, ok = fut.result()
-                    if not ok:
-                        echecs.append((str(j), "Aucune donnée retournée par l'API"))
-                except Exception as exc:
-                    echecs.append((str(futures[fut]), str(exc)))
+            try:
+                for fut in as_completed(futures, timeout=120):
+                    try:
+                        j, ok = fut.result(timeout=60)
+                        if not ok:
+                            echecs.append((str(j), "Aucune donnée retournée par l'API"))
+                    except Exception as exc:
+                        echecs.append((str(futures[fut]), str(exc)))
+            except Exception:
+                for fut in futures:
+                    fut.cancel()
+                echecs += [
+                    (str(futures[fut]), "Timeout — ENTSO-E n'a pas répondu dans les 2 min")
+                    for fut in futures if not fut.done()
+                ]
 
         barre.empty()
 
